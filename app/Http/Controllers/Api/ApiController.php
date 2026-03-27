@@ -3,31 +3,80 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Game;
+use App\Models\Prize;
+use App\Models\RevealedTile;
+use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ApiController extends Controller
 {
-    public function flip()
+    public function flip(Request $request)
     {
-        /**
-         * This is a simplified example to demonstrate interaction with the provided frontend (FE).
-         * The game objective is to collect three matching tiles to win a prize. Once three matching tiles are collected:
-         *   - The game ends.
-         *   - The prize is awarded, and its daily volume limit (defined in the back office) must be updated.
-         *
-         * Requirements:
-         * - Use the database layer to store and manage all game-related data, including game state and prize counts.
-         * - Cache is used here only for demonstration purposes and should be replaced with proper database storage.
-         */
-        $currentMove = (Cache::get(request('gameId')) ?? 0) + 1;
-        Cache::put(request('gameId'), $currentMove);
+        Validator::validate($request->all(), [
+            "gameId" => ["required", "exists:games,id"],
+            "tileIndex" => ["required", "integer", "min:0", "max:24"],
+        ]);
 
-        if ($currentMove >= 10) {
-            Cache::forget(request('gameId'));
+        $game = Game::query()->findOrFail($request->input("gameId"));
+
+        if ($game->finished_at !== null) {
+            throw new Exception("Game already finished");
         }
 
-        return [
-            'tileImage' => asset('assets/'.random_int(1, 7).'.png'),
-        ] + ($currentMove >= 10 ? ['message' => 'You lost!'] : []);
+        $existingTile = RevealedTile::query()
+            ->where("game_id", $game->id)
+            ->where("tile_index", $request->input("tileIndex"))
+            ->first();
+
+        if ($existingTile) {
+            return $this->response($existingTile->prize, null);
+        }
+
+        $prize = $this->generatePrize($game);
+
+        RevealedTile::query()->create([
+            "game_id" => $game->id,
+            "tile_index" => $request->input("tileIndex"),
+            "prize_id" => $prize->id,
+        ]);
+
+        $matches = RevealedTile::query()
+            ->where("game_id", $game->id)
+            ->where("prize_id", $prize->id)
+            ->count();
+
+        if ($matches >= 3) {
+            $game->finished_at = now();
+            $game->save();
+
+            return $this->response($prize, "You won a prize!");
+        }
+
+        return $this->response($prize, null);
+    }
+
+    private function response(Prize $prize, ?string $message)
+    {
+        return response()->json(array_filter([
+            "tileImage" => asset($prize->image),
+            "message" => $message,
+        ]));
+    }
+
+    private function generatePrize(Game $game): Prize
+    {
+        $prize = Prize::query()
+            ->where("campaign_id", $game->campaign_id)
+            ->where("segment", $game->segment)
+            ->orderByRaw("-LOG(RAND()) / weight")
+            ->first();
+
+        if (!$prize) {
+            throw new Exception("No prize found for game");
+        }
+
+        return $prize;
     }
 }
