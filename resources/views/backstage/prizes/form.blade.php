@@ -24,6 +24,13 @@
     'value' => old('weight') ?? $prize->weight,
 ])
 
+@include('backstage.partials.forms.number', [
+    'field' => 'daily_cap',
+    'label' => 'Daily Cap',
+    'step' => 1,
+    'value' => old('daily_cap') ?? $prize->daily_cap,
+])
+
 @include('backstage.partials.forms.select', [
     'field' => 'segment',
     'label' => 'Segment',

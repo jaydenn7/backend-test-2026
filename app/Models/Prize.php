@@ -20,6 +20,7 @@ class Prize extends Model
         'image',
         'starts_at',
         'ends_at',
+        'daily_cap',
     ];
 
     protected function casts(): array
