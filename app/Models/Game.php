@@ -2,22 +2,32 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
+/**
+ * @property int $id
+ * @property Collection $revealed_tiles
+ * @property Carbon|null $finished_at
+ * @property int $campaign_id
+ * @property string $segment
+ * @property int|null $prize_id
+ */
 class Game extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['campaign_id', 'prize_id', 'account', 'segment', 'finished_at'];
-
-    protected function casts(): array
-    {
-        return [
-            'finished_at' => 'datetime',
-        ];
-    }
+    protected $fillable = [
+        'campaign_id',
+        'prize_id',
+        'account',
+        'segment',
+        'finished_at',
+    ];
 
     public static function filter(?string $account = null, ?int $prizeId = null, ?string $fromDate = null, ?string $tillDate = null)
     {
@@ -29,13 +39,25 @@ class Game extends Model
         return $query;
     }
 
-    public function campaign(): BelongsTo
+    public function campaign() : BelongsTo
     {
         return $this->belongsTo(Campaign::class);
     }
 
-    public function prize(): BelongsTo
+    public function prize() : BelongsTo
     {
         return $this->belongsTo(Prize::class);
+    }
+
+    public function revealed_tiles() : HasMany
+    {
+        return $this->hasMany(RevealedTile::class);
+    }
+
+    protected function casts() : array
+    {
+        return [
+            'finished_at' => 'datetime',
+        ];
     }
 }

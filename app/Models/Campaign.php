@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 
+/**
+ * @property int $id
+ * @property Carbon $starts_at
+ * @property Carbon $ends_at
+ */
 class Campaign extends Model
 {
     use HasSlug;
