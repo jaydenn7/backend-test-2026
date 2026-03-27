@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property string $image
  * @property int $id
+ * @property int $daily_cap
+ * @property float $weight
  */
 class Prize extends Model
 {
@@ -40,5 +44,10 @@ class Prize extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
+    }
+
+    public function winsToday() : HasMany
+    {
+        return $this->hasMany(Game::class)->whereDate("finished_at", Carbon::today());
     }
 }

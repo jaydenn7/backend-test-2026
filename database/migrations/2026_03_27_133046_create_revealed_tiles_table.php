@@ -13,10 +13,12 @@ return new class extends Migration
     {
         Schema::create('revealed_tiles', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('game_id');
+            $table->foreignId('game_id')->constrained()->cascadeOnDelete();
             $table->integer('tile_index');
-            $table->foreignId('prize_id');
+            $table->foreignId('prize_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
+
+            $table->unique(['game_id', 'tile_index']);
         });
     }
 

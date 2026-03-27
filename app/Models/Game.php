@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 /**
  * @property int $id
- * @property Collection $revealed_tiles
+ * @property Collection $revealedTiles
  * @property Carbon|null $finished_at
  * @property int $campaign_id
  * @property string $segment
@@ -49,7 +49,7 @@ class Game extends Model
         return $this->belongsTo(Prize::class);
     }
 
-    public function revealed_tiles() : HasMany
+    public function revealedTiles() : HasMany
     {
         return $this->hasMany(RevealedTile::class);
     }
