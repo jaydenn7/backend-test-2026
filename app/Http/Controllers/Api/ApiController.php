@@ -5,78 +5,44 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\Prize;
-use App\Models\RevealedTile;
-use Exception;
+use App\Services\FlipService;
+use App\Services\PrizeSelector;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ApiController extends Controller
 {
-    public function flip(Request $request)
+    public function flip(Request $request, FlipService $flipService, PrizeSelector $prizeSelector) : JsonResponse
     {
-        Validator::validate($request->all(), [
+        $validator = Validator::make($request->all(), [
             "gameId" => ["required", "exists:games,id"],
             "tileIndex" => ["required", "integer", "min:0", "max:24"],
         ]);
 
-        $game = Game::query()->findOrFail($request->input("gameId"));
-
-        if ($game->finished_at !== null) {
-            throw new Exception("Game already finished");
+        if ($validator->fails()) {
+            return $this->response(message: $validator->errors()->first(), code: 400);
         }
 
-        $existingTile = RevealedTile::query()
-            ->where("game_id", $game->id)
-            ->where("tile_index", $request->input("tileIndex"))
-            ->first();
+        $validated = $validator->validated();
 
-        if ($existingTile) {
-            return $this->response($existingTile->prize, null);
-        }
+        /** @var Game $game */
+        $game = Game::query()->findOrFail($validated["gameId"]);
 
-        $prize = $this->generatePrize($game);
+        $result = $flipService->handle(
+            game: $game,
+            prizeSelector: $prizeSelector,
+            tileIndex: $validated["tileIndex"]
+        );
 
-        RevealedTile::query()->create([
-            "game_id" => $game->id,
-            "tile_index" => $request->input("tileIndex"),
-            "prize_id" => $prize->id,
-        ]);
-
-        $matches = RevealedTile::query()
-            ->where("game_id", $game->id)
-            ->where("prize_id", $prize->id)
-            ->count();
-
-        if ($matches >= 3) {
-            $game->finished_at = now();
-            $game->save();
-
-            return $this->response($prize, "You won a prize!");
-        }
-
-        return $this->response($prize, null);
+        return $this->response($result->prize, $result->message);
     }
 
-    private function response(Prize $prize, ?string $message)
+    private function response(Prize|null $prize = null, string|null $message = null, int $code = 200) : JsonResponse
     {
-        return response()->json(array_filter([
-            "tileImage" => asset($prize->image),
+        return response()->json([
+            "tileImage" => $prize?->image,
             "message" => $message,
-        ]));
-    }
-
-    private function generatePrize(Game $game): Prize
-    {
-        $prize = Prize::query()
-            ->where("campaign_id", $game->campaign_id)
-            ->where("segment", $game->segment)
-            ->orderByRaw("-LOG(RAND()) / weight")
-            ->first();
-
-        if (!$prize) {
-            throw new Exception("No prize found for game");
-        }
-
-        return $prize;
+        ], $code);
     }
 }
